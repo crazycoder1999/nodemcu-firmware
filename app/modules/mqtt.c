@@ -22,7 +22,7 @@
 #define MQTT_MAX_CLIENT_LEN   64
 #define MQTT_MAX_USER_LEN     64
 #define MQTT_MAX_PASS_LEN     64
-#define MQTT_SEND_TIMEOUT			5
+#define MQTT_SEND_TIMEOUT     5
 #define MQTT_CONNECT_TIMEOUT  5
 
 typedef enum {
@@ -475,24 +475,26 @@ static void mqtt_socket_connected(void *arg)
 
 void mqtt_socket_timer(void *arg)
 {
+// TIPS #1 this function is called everytime 
+// I think this is responsible for reading from the queue messages and sending it
   NODE_DBG("enter mqtt_socket_timer.\n");
   lmqtt_userdata *mud = (lmqtt_userdata*) arg;
 
   if(mud == NULL)
     return;
   if(mud->pesp_conn == NULL){
-    NODE_DBG("mud->pesp_conn is NULL.\n");
+    NODE_DBG("mud->pesp_conn is NULL.\n"); // TIPS #2 wtf is pesp_conn???
     os_timer_disarm(&mud->mqttTimer);
     return;
   }
 
-  NODE_DBG("timer, queue size: %d\n", msg_size(&(mud->mqtt_state.pending_msg_q)));
-  if(mud->event_timeout > 0){
+  NODE_DBG("timer, queue size: %d\n", msg_size(&(mud->mqtt_state.pending_msg_q))); //TIPS #3 checking the queue
+  if(mud->event_timeout > 0){ 
     NODE_DBG("event_timeout: %d.\n", mud->event_timeout);
   	mud->event_timeout --;
-    if(mud->event_timeout > 0){
+    if(mud->event_timeout > 0){ //TIPS #4 decrease the timeout and exit if timeout is major than 0.
       return;
-    } else {
+    } else { //TIPS #5 else of #4: if timeout is elapsed.. destroy the message and dequeue it.
       NODE_DBG("event timeout. \n");
       if(mud->connState == MQTT_DATA)
         msg_destroy(msg_dequeue(&(mud->mqtt_state.pending_msg_q)));
@@ -516,7 +518,7 @@ void mqtt_socket_timer(void *arg)
     NODE_DBG("MQTT_CONNECT failed.\n");
   } else if(mud->connState == MQTT_DATA){
     msg_queue_t *pending_msg = msg_peek(&(mud->mqtt_state.pending_msg_q));
-    if(pending_msg){
+    if(pending_msg){ //TIPS #6 if I have a MQTT_DATA , pickup the oldest message and send it
       mud->event_timeout = MQTT_SEND_TIMEOUT;
       if(mud->secure)
         espconn_secure_sent(mud->pesp_conn, pending_msg->msg.data, pending_msg->msg.length);
