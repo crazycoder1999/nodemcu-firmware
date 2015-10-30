@@ -1,5 +1,8 @@
 # **NodeMCU** #
-version 0.9.5
+version 0.9.5-INVALID
+
+**I forked the project just to add some notes on the MQTT modules and understand the problem explained here**
+http://stackoverflow.com/questions/33414441/nodemcu-and-esp8266-slow-mqtt-publish
 
 [![Join the chat at https://gitter.im/nodemcu/nodemcu-firmware](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/nodemcu/nodemcu-firmware?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/nodemcu/nodemcu-firmware.svg)](https://travis-ci.org/nodemcu/nodemcu-firmware)  [![Download](https://img.shields.io/badge/download-~400k-orange.svg)](https://github.com/nodemcu/nodemcu-firmware/releases/latest)
