@@ -215,7 +215,8 @@ static void mqtt_socket_received(void *arg, char *pdata, unsigned short len)
     return;
 
 READPACKET:
-  if(length > MQTT_BUF_SIZE || length <= 0)
+  if(length > MQTT_BUF_SIZE || length <= 0) 
+  //#TIPS 11 on each packet (how an unsigend short can change to a negative number??)
 	  return;
 
   // c_memcpy(in_buffer, pdata, length);
@@ -249,6 +250,7 @@ READPACKET:
       break;
 
     case MQTT_DATA:
+    // #TIPS 12 if it is a mqtt data
       mud->mqtt_state.message_length_read = length;
       mud->mqtt_state.message_length = mqtt_get_total_length(in_buffer, mud->mqtt_state.message_length_read);
       msg_type = mqtt_get_type(in_buffer);
@@ -286,6 +288,8 @@ READPACKET:
           }
           break;
         case MQTT_MSG_TYPE_PUBLISH:
+        //TIPS 13 if it's a publish
+          NODE_DBG("MQTT: Wtf dude? I should pass here.. only for qos = [1,2] ");
           if(msg_qos == 1){
             temp_msg = mqtt_msg_puback(&mud->mqtt_state.mqtt_connection, msg_id);
             node = msg_enqueue(&(mud->mqtt_state.pending_msg_q), temp_msg, 
@@ -476,14 +480,14 @@ static void mqtt_socket_connected(void *arg)
 void mqtt_socket_timer(void *arg)
 {
 // TIPS #1 this function is called everytime 
-// I think this is responsible for reading from the queue messages and sending it
+// I think this is responsible for reading from the queue messages any type of message and process it
   NODE_DBG("enter mqtt_socket_timer.\n");
   lmqtt_userdata *mud = (lmqtt_userdata*) arg;
 
   if(mud == NULL)
     return;
   if(mud->pesp_conn == NULL){
-    NODE_DBG("mud->pesp_conn is NULL.\n"); // TIPS #2 wtf is pesp_conn???
+    NODE_DBG("mud->pesp_conn is NULL.\n"); // TIPS #2 only if esp connection is not ok.. disarm alarm
     os_timer_disarm(&mud->mqttTimer);
     return;
   }
@@ -1148,6 +1152,7 @@ static int mqtt_socket_subscribe( lua_State* L ) {
 // Lua: bool = mqtt:publish( topic, payload, qos, retain, function() )
 static int mqtt_socket_publish( lua_State* L )
 {
+  // #TIPS start function called on publish from LUA
   NODE_DBG("enter mqtt_socket_publish.\n");
   struct espconn *pesp_conn = NULL;
   lmqtt_userdata *mud;
@@ -1192,11 +1197,11 @@ static int mqtt_socket_publish( lua_State* L )
 
   uint8_t temp_buffer[MQTT_BUF_SIZE];
   mqtt_msg_init(&mud->mqtt_state.mqtt_connection, temp_buffer, MQTT_BUF_SIZE);
+  //#TIPS 8 create a new message with publish format
   mqtt_message_t *temp_msg = mqtt_msg_publish(&mud->mqtt_state.mqtt_connection,
                        topic, payload, l,
                        qos, retain,
                        &msg_id);
-
   if (lua_type(L, stack) == LUA_TFUNCTION || lua_type(L, stack) == LUA_TLIGHTFUNCTION){
     lua_pushvalue(L, stack);  // copy argument (func) to the top of stack
     if(mud->cb_puback_ref != LUA_NOREF)
@@ -1204,24 +1209,33 @@ static int mqtt_socket_publish( lua_State* L )
     mud->cb_puback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
   }
 
-  msg_queue_t *node = msg_enqueue(&(mud->mqtt_state.pending_msg_q), temp_msg, 
+//#TIPS 9 enqueue the new built message and send it eventually..
+ /* msg_queue_t *node = msg_enqueue(&(mud->mqtt_state.pending_msg_q), temp_msg, 
                       msg_id, MQTT_MSG_TYPE_PUBLISH, (int)qos );
 
-  if(node && (1==msg_size(&(mud->mqtt_state.pending_msg_q))) && mud->event_timeout == 0){
+  int msize = msg_size(&(mud->mqtt_state.pending_msg_q));
+  if(node && (1 == msize) && mud->event_timeout == 0){
+    
+    //#TIPS 10 CRITICAL: it enqueue a message.. and if the queue is length == 1 it  ALSO send it immediately..but the message is already queued! WHY?! 
+    
     mud->event_timeout = MQTT_SEND_TIMEOUT;
-    NODE_DBG("Sent: %d\n", node->msg.length);
+    NODE_DBG("Sent immediately: %d %d\n", node->msg.length, msize);
     if( mud->secure )
       espconn_secure_sent( mud->pesp_conn, node->msg.data, node->msg.length );
     else
       espconn_sent( mud->pesp_conn, node->msg.data, node->msg.length );
     mud->keep_alive_tick = 0;
-  }
+  }*/
 
+    mud->event_timeout = MQTT_SEND_TIMEOUT;
+    espconn_sent( mud->pesp_conn, temp_msg->data, temp_msg->length );
+    mud->keep_alive_tick = 0;
+/*
   if(!node){
     lua_pushboolean(L, 0);
-  } else {
+  } else {*/
     lua_pushboolean(L, 1);  // enqueued succeed.
-  }
+  //}
 
   NODE_DBG("publish, queue size: %d\n", msg_size(&(mud->mqtt_state.pending_msg_q)));
   NODE_DBG("leave mqtt_socket_publish.\n");

@@ -7,18 +7,27 @@ msg_queue_t *msg_enqueue(msg_queue_t **head, mqtt_message_t *msg, uint16_t msg_i
   if(!head){
     return NULL;
   }
+  
+  if(msg_size(head) > 10) {
+    NODE_DBG("Trashing due to BIG Queue");
+  // CHANGE 1: just for test...
+    return NULL;
+  }
+  
   if (!msg || !msg->data || msg->length == 0){
     NODE_DBG("empty message\n");
     return NULL;
   }
   msg_queue_t *node = (msg_queue_t *)c_zalloc(sizeof(msg_queue_t));
-  if(!node){
+  if ( !node ) { 
+    //TIPS #1 I'm not sure thta this code is enough for this device. When the memory is full.. it reboot?
+    //     If this hypothesys it's true, there is no possibility to save the program. 
     NODE_DBG("not enough memory\n");
     return NULL;
   }
   
   node->msg.data = (uint8_t *)c_zalloc(msg->length);
-  if(!node->msg.data){
+  if(!node->msg.data){ //TIPS #2.. like #1
     NODE_DBG("not enough memory\n");
     c_free(node);
     return NULL;
