@@ -1,5 +1,7 @@
-# **NodeMCU_MQTT_Hacked** # 
+# **NodeMCU_MQTT_Hacked** #
+
 Derived from version 0.9.5
+
 This is a forked version of nodemcu-firmware: https://github.com/nodemcu/nodemcu-firmware
 
 The changes from the original version are relatives to how MQTT "publish" is managed.
